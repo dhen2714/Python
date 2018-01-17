@@ -15,6 +15,7 @@ import cv2
 import glob
 import motion3d as m3d
 import os
+import matplotlib.pyplot as plt
 
 def get_corners(directory,prefix,check_rows,check_cols,length,
                 showResults=True):
@@ -54,7 +55,9 @@ def get_corners(directory,prefix,check_rows,check_cols,length,
 
             # Draw and display the corners
             if showResults:
-                cv2.drawChessboardCorners(img, (check_rows, check_cols), corners,
+                cv2.drawChessboardCorners(img,
+                                          (check_rows, check_cols),
+                                          corners,
                                           ret)
                 cv2.imshow('{}'.format(view), img)
                 cv2.waitKey(1)
@@ -102,10 +105,11 @@ def get_motions(dict3D,reference="view01"):
 def calibrate_stereo(directory,check_rows,check_cols,length,
                      left_prefix = "left",
                      right_prefix = "right",
-                     showResults=True):
+                     pixel_format = "pgm",
+                     showResults = True):
     """
     Calibrate stereo camera setup.
-    Outputs results into a .npz file.
+    Outputs results into .npz files.
     """
     # Termination criteria for getting sub-pixel corner positions.
     criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)
@@ -118,76 +122,95 @@ def calibrate_stereo(directory,check_rows,check_cols,length,
     objpoints = [] # 3d points in real world space.
     imgpoints_left = [] # 2d points in image plane.
     imgpoints_right = []
-    os.path.join(directory, "{}*.pgm")
-    left_search = os.path.join(directory, "{}*.pgm".format(left_prefix))
-    right_search = os.path.join(directory, "{}*.pgm".format(right_prefix))
+    left_search = os.path.join(directory, "{}*.{}".format(left_prefix,
+                                                          pixel_format))
+    right_search = os.path.join(directory, "{}*.{}".format(right_prefix,
+                                                           pixel_format))
     left_images = glob.glob(left_search)
     right_images = glob.glob(right_search)
+
     if not (left_images and right_images):
-        print("No images found in", directory)
-        quit()
+        print("No images found matching {}, {}".format(left_search,
+                                                       right_search))
+        return
 
     set_number = 1
+    unsuccessful_views = set()
 
-    for images in [left_images, right_images]:
-        for fname in images:
-            print("Processing ... ",fname)
-            view = fname.split("\\")[1].split(".")[0]
+    for image_left, image_right in zip(left_images, right_images):
+        view_left = os.path.split(image_left)[1].split(".")[0]
+        view_right = os.path.split(image_right)[1].split(".")[0]
+        print("Processing ... ", view_left, view_right)
 
-            img = cv2.imread(fname)
-            grey = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        img_left = cv2.imread(image_left)
+        img_right = cv2.imread(image_right)
+        grey_left = cv2.cvtColor(img_left, cv2.COLOR_BGR2GRAY)
+        grey_right = cv2.cvtColor(img_right, cv2.COLOR_BGR2GRAY)
 
-            # Find corners.
-            # cv2.findChessboardCorners(img, patternsize(rows, columns))
-            ret, corners = cv2.findChessboardCorners(grey,
-                                                     (check_rows, check_cols),
-                                                     None)
+        # Find corners.
+        # cv2.findChessboardCorners(img, patternsize(rows, columns))
+        ret1, corners1 = cv2.findChessboardCorners(grey_left,
+                                                   (check_rows, check_cols),
+                                                   None)
+        ret2, corners2 = cv2.findChessboardCorners(grey_right,
+                                                   (check_rows, check_cols),
+                                                   None)
 
-            # If found, store pixel coordinates of corners after refinement.
-            if ret:
-                cv2.cornerSubPix(grey, corners, (5,5), (-1,-1), criteria)
-                if set_number == 1:
-                    objpoints.append(objp)
-                    imgpoints_left.append(corners)
-                elif set_number == 2:
-                    imgpoints_right.append(corners)
+        if ret1 and ret2:
+            corners1 = cv2.cornerSubPix(grey_left, corners1, (5,5), (-1,-1),
+                                        criteria)
+            corners2 = cv2.cornerSubPix(grey_right, corners2, (5,5), (-1,-1),
+                                        criteria)
+            objpoints.append(objp)
+            imgpoints_left.append(corners1)
+            imgpoints_right.append(corners2)
+
+            if showResults:
+                cv2.drawChessboardCorners(img_left,
+                                          (check_rows, check_cols),
+                                          corners1,
+                                          ret1)
+                cv2.drawChessboardCorners(img_right,
+                                          (check_rows, check_cols),
+                                          corners2,
+                                          ret2)
+                cv2.imshow("{}, {}".format(view_left, view_right),
+                           np.hstack((img_left, img_right)))
+                cv2.waitKey(1)
+        else:
+            print("Could not find corners in both {} and {}".format(
+                    view_left, view_right))
 
 
-                # Draw and display the corners
-                if showResults:
-                    cv2.drawChessboardCorners(img, (check_rows, check_cols),
-                                              corners, ret)
-                    cv2.imshow('{}'.format(view), img)
-                    cv2.waitKey(1)
-        set_number += 1
+    input("All images processed. Press ENTER to continue.")
+    cv2.destroyAllWindows()
 
-    if showResults:
-        input("All images processed. Press ENTER to continue.")
-        cv2.destroyAllWindows()
-
-    print("Calibrating...")
+    print(len(objpoints), len(imgpoints_left), len(imgpoints_right))
     ret1, K1, dc1, rv1, tv1 = cv2.calibrateCamera(objpoints, imgpoints_left,
-                                                 img.shape[:2],None,None)
-    #ret1, K1, dc1, rv1, tv1 = cv2.calibrateCamera(objpoints, imgpoints_left,
-    #                                             img.shape[:2],K1,dc1)
+                                                 img_left.shape[:2],None,None)
+
     ret2, K2, dc2, rv2, tv2 = cv2.calibrateCamera(objpoints, imgpoints_right,
-                                                 img.shape[:2],None,None)
-    #ret2, K2, dc2, rv2, tv2 = cv2.calibrateCamera(objpoints, imgpoints_right,
-    #                                             img.shape[:2],K2,dc2)
+                                                 img_left.shape[:2],None,None)
+
+
     print("Reprojection error for left camera: ", ret1)
     print("Reprojection error for right camera: ", ret2)
+
     left_reproj, left_pix = pixel_reprojections(check_rows, check_cols,
                 objpoints, imgpoints_left, K1, rv1, tv1, dc1)
     right_reproj, right_pix = pixel_reprojections(check_rows, check_cols,
                 objpoints, imgpoints_right, K2, rv2, tv2, dc2)
 
-    retval, K1, dc1, K2, dc2, R, T, E, F = cv2.stereoCalibrate(objpoints,
-                                                               imgpoints_left,
-                                                               imgpoints_right,
-                                                               K1, dc1,
-                                                               K2, dc2,
-                                                               img.shape[:2],
-                                                               cv2.CALIB_FIX_INTRINSIC)
+    retval, K1, dc1, K2, dc2, R, T, E, F = cv2.stereoCalibrate(
+                                        objpoints,
+                                        imgpoints_left,
+                                        imgpoints_right,
+                                        K1, dc1,
+                                        K2, dc2,
+                                        img_left.shape[:2],
+                                        cv2.CALIB_FIX_INTRINSIC)
+
+    print("Final reprojection error: ", retval)
     np.savez("Stereo_calibration",
              retval = retval,
              K1 = K1, dc1 = dc1, K2 = K2, dc2 = dc2, R = R, T = T,
@@ -205,7 +228,7 @@ def calibrate_stereo(directory,check_rows,check_cols,length,
              Checkerboard_coords = right_pix,
              Checkerboard_reprojected = right_reproj)
 
-    print("Calibration finished!")
+    print("Calibration finished, results saved.")
     return
 
 def reprojection_error(points3d, points2d, K, rvecs, tvecs, distCoeffs):
@@ -237,6 +260,32 @@ def pixel_reprojections(check_rows, check_cols, points3d, points2d,
         pix_reprojected[:,:,i] = np.squeeze(project)
         pix_measured[:,:,i] = np.squeeze(points2d[i])
     return pix_reprojected, pix_measured
+
+def print_stereo_cal_npz(npz_file):
+    """
+    Displays results of stereo calibration for a given npz stereo cal file.
+    """
+    data = np.load(npz_file)
+    K1 = data['K1']; K2 = data['K2']
+    dc1 = data['dc1']; dc2 = data['dc2']
+    R1 = np.eye(3); R2 = data['R']; t = data['T']
+    reprojection_error = data['retval']
+
+    P1 = np.dot(K1, np.hstack((R1, np.zeros((3,1)))))
+    P2 = np.dot(K2, np.hstack((R2, t.reshape(3,1))))
+
+    display = ("P1 : \n {} \n".format(repr(P1)) +
+               "P2 : \n {} \n".format(repr(P2)) +
+               "K1 : \n {} \n".format(repr(K1)) +
+               "K2 : \n {} \n".format(repr(K2)) +
+               "R : \n {} \n".format(repr(R2))  +
+               "t : \n {} \n".format(repr(t))   +
+               "Distortion (k1, k2, p1, p2, k3): \n" +
+               "Camera 1: {} \n".format(repr(dc1)) +
+               "Camera 2: {} \n".format(repr(dc2)) +
+               "Reprojection error: {} \n".format(reprojection_error))
+    print(display)
+    return
 
 def print_stereo_calibration_results(retval,P1,dc1,P2,dc2,R,T,E,F):
     print("Camera matrices: \n",P1,"\n",P2)
