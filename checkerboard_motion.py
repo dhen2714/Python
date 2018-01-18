@@ -104,7 +104,7 @@ def get_motions(dict3D,reference="view01"):
 
 def sort_image_filenames(list1, list2, prefix1, prefix2):
     """
-    Given two numpy arrays of calibration image filenames, sort them by number. 
+    Given two numpy arrays of calibration image filenames, sort them by number.
     """
     names1 = [os.path.split(_)[1] for _ in list1]
     names2 = [os.path.split(_)[1] for _ in list2]
@@ -276,7 +276,7 @@ def pixel_reprojections(check_rows, check_cols, points3d, points2d,
         pix_measured[:,:,i] = np.squeeze(points2d[i])
     return pix_reprojected, pix_measured
 
-def print_stereo_cal_npz(npz_file):
+def print_stereo_cal_npz(npz_file = "Stereo_calibration.npz"):
     """
     Displays results of stereo calibration for a given npz stereo cal file.
     """
