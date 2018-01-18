@@ -102,7 +102,17 @@ def get_motions(dict3D,reference="view01"):
         dict_motions.update({key : H})
     return dict_motions
 
-def calibrate_stereo(directory,check_rows,check_cols,length,
+def sort_image_filenames(list1, list2, prefix1, prefix2):
+    """
+    Given two numpy arrays of calibration image filenames, sort them by number. 
+    """
+    names1 = [os.path.split(_)[1] for _ in list1]
+    names2 = [os.path.split(_)[1] for _ in list2]
+    nums1 = [int(os.path.splitext(_)[0].strip(prefix1)) for _ in names1]
+    nums2 = [int(os.path.splitext(_)[0].strip(prefix2)) for _ in names2]
+    return list1[np.argsort(nums1)], list2[np.argsort(nums2)]
+
+def calibrate_stereo(directory, check_rows, check_cols, length,
                      left_prefix = "left",
                      right_prefix = "right",
                      pixel_format = "pgm",
@@ -126,10 +136,16 @@ def calibrate_stereo(directory,check_rows,check_cols,length,
                                                           pixel_format))
     right_search = os.path.join(directory, "{}*.{}".format(right_prefix,
                                                            pixel_format))
-    left_images = glob.glob(left_search)
-    right_images = glob.glob(right_search)
+    left_images = np.array(glob.glob(left_search))
+    right_images = np.array(glob.glob(right_search))
 
-    if not (left_images and right_images):
+    # Sort filenames by their number.
+    left_images, right_images = sort_image_filenames(left_images,
+                                                     right_images,
+                                                     left_prefix,
+                                                     right_prefix)
+
+    if not (len(left_images) and len(right_images)):
         print("No images found matching {}, {}".format(left_search,
                                                        right_search))
         return
@@ -185,7 +201,6 @@ def calibrate_stereo(directory,check_rows,check_cols,length,
     input("All images processed. Press ENTER to continue.")
     cv2.destroyAllWindows()
 
-    print(len(objpoints), len(imgpoints_left), len(imgpoints_right))
     ret1, K1, dc1, rv1, tv1 = cv2.calibrateCamera(objpoints, imgpoints_left,
                                                  img_left.shape[:2],None,None)
 
