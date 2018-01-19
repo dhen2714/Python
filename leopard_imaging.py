@@ -105,7 +105,7 @@ def calibrate_leopard_stereo(directory, check_rows, check_cols, length,
                                                    (check_rows, check_cols),
                                                    None)
 
-        if ret1 and ret2:
+        if (ret1 and ret2):
             corners1 = cv2.cornerSubPix(grey_left, corners1, (5,5), (-1,-1),
                                         criteria)
             corners2 = cv2.cornerSubPix(grey_right, corners2, (5,5), (-1,-1),

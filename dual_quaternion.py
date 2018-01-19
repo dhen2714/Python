@@ -1,6 +1,77 @@
 import numpy as np
 
-class dual_number:
+class Quaternion:
+    """
+    Quaternion:
+        q = w+ x*i + y*j + z*k
+    """
+    def __init__(self, *args):
+        if len(args) == 4:
+            self.w = args[0]
+            self.x = args[1]
+            self.y = args[2]
+            self.z = args[3]
+        elif len(args) == 1 and len(args[0]) == 4:
+            self.w = args[0][0]
+            self.x = args[0][1]
+            self.y = args[0][2]
+            self.z = args[0][3]
+        else:
+            self.w = 1
+            self.x = 0
+            self.y = 0
+            self.z = 0
+
+    def __str__(self):
+        return "{} + {}*i + {}*j + {}*k".format(self.w, self.x, self.y, self.z)
+
+    def __repr__(self):
+        return "Quaternion({}, {}, {}, {})".format(
+            self.w, self.x, self.y, self.z)
+
+    def __mul__(self, other):
+        """self*x, where x is int, float or quaternion."""
+        if isinstance(other, (int, float)):
+            return Quaternion(other*self.w, other*self.x, other*self.y,
+                other*self.z)
+        elif type(self) != type(other):
+            raise TypeError(
+                "Must multiply quaternion with real number or quaternion.")
+
+        w = self.scalar*other.scalar - np.dot(self.vector, other.vector)
+        xyz = (self.scalar*other.vector + other.scalar*self.vector +
+            np.cross(self.vector, other.vector))
+        return Quaternion(w, xyz[0], xyz[1], xyz[2])
+
+    def __rmul__(self, other):
+        """x*Quaternion, where x is int or float."""
+        if isinstance(other, (int, float)):
+            return Quaternion(other*self.w, other*self.x, other*self.y,
+                other*self.z)
+        else:
+            raise TypeError(
+                "Must multiply quaternion with real number or quaternion.")
+
+    def __neg__(self):
+        return Quaternion(-self.w, -self.x, -self.y, -self.z)
+
+    @property
+    def scalar(self):
+        return self.w
+
+    @property
+    def vector(self):
+        return np.array([self.x, self.y, self.z])
+
+    @property
+    def conjugate(self):
+        return Quaternion(self.w, -self.x, -self.y, -self.z)
+
+    @property
+    def norm(self):
+        return np.sqrt(self.w**2 + self.x**2 + self.y**2 + self.z**2)
+
+class DualNumber:
     """
     Dual number is denoted r + eps*d, where eps^2 is 0.
     For a dual number q, r is Real(q), d is Dual(q).
@@ -15,19 +86,19 @@ class dual_number:
     def __str__(self):
         return str(self.real) + ' + ' + 'eps*' + str(self.dual)
 
-class dual_quaternion(dual_number):
+class DualQuaternion(DualNumber):
     """
     Dual quaternions are dual numbers where both real and dual parts are
     quaternions.
     """
     def __init__(self, *args):
         if len(args) == 8:
-            super().__init__(np.array([args[0], args[1], args[2], args[3]]),
-                             np.array([args[4], args[5], args[6], args[7]]))
+            super().__init__(Quaternion([args[0], args[1], args[2], args[3]]),
+                             Quaternion([args[4], args[5], args[6], args[7]]))
         elif (len(args) == 1) and (len(args[0]) == 8):
-            super().__init__(np.array([args[0][0], args[0][1], args[0][2],
+            super().__init__(Quaternion([args[0][0], args[0][1], args[0][2],
                                        args[0][3]]),
-                             np.array([args[0][4], args[0][5], args[0][6],
+                             Quaternion([args[0][4], args[0][5], args[0][6],
                                        args[0][7]]))
         elif len(args) == 2:
             super().__init__(args[0], args[1])
@@ -35,7 +106,7 @@ class dual_quaternion(dual_number):
             super().__init__()
 
     def __repr__(self):
-        return "dual_quaternion({}, {})".format(self.real, self.dual)
+        return "DualQuaternion({}, {})".format(self.real, self.dual)
 
     def mat(self):
         """
@@ -43,10 +114,14 @@ class dual_quaternion(dual_number):
         """
         H = np.eye(4)
 
-        q0 = self.real[0]
-        qx = self.real[1]
-        qy = self.real[2]
-        qz = self.real[3]
+        # q0 = self.real[0]
+        # qx = self.real[1]
+        # qy = self.real[2]
+        # qz = self.real[3]
+        q0 = self.real.w
+        qx = self.real.x
+        qy = self.real.y
+        qz = self.real.z
 
         R = np.array([[q0**2+qx**2-qy**2-qz**2,2*(qx*qy-q0*qz),
                        2*(qx*qz+q0*qy)],
@@ -55,17 +130,20 @@ class dual_quaternion(dual_number):
                       [2*(qz*qx-q0*qy),2*(qz*qy+q0*qx),
                        (q0**2-qx**2-qy**2+qz**2)]])
 
-        q = self.real; q[1:] = -self.real[1:]
-        t = 2*qmult(self.dual,q)
+        # q = self.real; q[1:] = -self.real[1:]
+        q = self.real.conjugate
+        # t = 2*qmult(self.dual,q)
+        t = 2*(self.dual*q)
         H[:3,:3] = R
-        H[:3,3] = t[1:]
+        #H[:3,3] = t[1:]
+        H[:3,3] = t.vector
         return H
 
     def conj(self):
         """Returns conjugate."""
         r_s = np.array([1,-1,-1,-1])*self.real
         d_s = np.array([1,-1,-1,-1])*self.dual
-        dq_s = dual_quaternion(np.hstack((r_s,d_s)))
+        dq_s = DualQuaternion(np.hstack((r_s,d_s)))
         return dq_s
 
     def scalar(self):
@@ -124,7 +202,7 @@ def hom2dq(H):
     t_q = np.array([0,t[0],t[1],t[2]])
     dq_dual = 0.5*qmult(t_q,dq_real)
 
-    return dual_quaternion(dq_real, dq_dual)
+    return DualQuaternion(dq_real, dq_dual)
 
 def qmult(q1,q2):
     """Quaternion multiplication."""
@@ -200,13 +278,13 @@ def dqcrosscalib(A,B):
     # This will be the case when inputs are pure rotations.
     if val == 0:
         q = V[:,6] + V[:,7]
-        Xdq = dual_quaternion(q)
+        Xdq = DualQuaternion(q)
     else:
         l2 = np.sqrt(1/val)
         l1 = s*l2
         q = l1*V[:,6] + l2*V[:,7]
-        Xdq = dual_quaternion(q)
-        if Xdq.real[0] < 0:
+        Xdq = DualQuaternion(q)
+        if Xdq.real.scalar < 0:
             Xdq.real = -Xdq.real
             Xdq.dual = -Xdq.dual
     return Xdq.mat()
