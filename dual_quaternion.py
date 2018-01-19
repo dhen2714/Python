@@ -29,6 +29,12 @@ class Quaternion:
         return "Quaternion({}, {}, {}, {})".format(
             self.w, self.x, self.y, self.z)
 
+    def __add__(self, other):
+        if type(self) != type(other):
+            raise TypeError("Must add two quaternions.")
+        return Quaternion(self.w + other.w, self.x + other.x,
+            self.y + other.y, self.z + other.z)
+
     def __mul__(self, other):
         """self*x, where x is int, float or quaternion."""
         if isinstance(other, (int, float)):
@@ -84,7 +90,7 @@ class DualNumber:
         return "dual_number({}, {}).".format(self.real, self.dual)
 
     def __str__(self):
-        return str(self.real) + ' + ' + 'eps*' + str(self.dual)
+        return "({}) + eps*({})".format(self.real, self.dual)
 
 class DualQuaternion(DualNumber):
     """
@@ -106,7 +112,8 @@ class DualQuaternion(DualNumber):
             super().__init__()
 
     def __repr__(self):
-        return "DualQuaternion({}, {})".format(self.real, self.dual)
+        return "DualQuaternion({}, {})".format(repr(self.real),
+            repr(self.dual))
 
     def mat(self):
         """
@@ -139,30 +146,27 @@ class DualQuaternion(DualNumber):
         H[:3,3] = t.vector
         return H
 
-    def conj(self):
-        """Returns conjugate."""
-        r_s = np.array([1,-1,-1,-1])*self.real
-        d_s = np.array([1,-1,-1,-1])*self.dual
-        dq_s = DualQuaternion(np.hstack((r_s,d_s)))
-        return dq_s
+    @property
+    def conjugate(self):
+        return DualQuaternion(self.real.conjugate, self.dual.conjugate)
 
+    @property
     def scalar(self):
         """Returns scalar part."""
-        sc_real = 0.5*(self.real + self.conj().real)
-        sc_dual = 0.5*(self.dual + self.conj().dual)
-        sc = dual_number(sc_real[0],sc_dual[0])
-        return sc
+        sc_real = 0.5*(self.real + self.conj.real)
+        sc_dual = 0.5*(self.dual + self.conj.dual)
+        return dual_number(sc_real.scalar, sc_dual.scalar)
 
+    @property
     def screw_angle(self):
         """Returns screw angle."""
-        theta = 2*np.arccos(self.scalar().real)
-        return theta
+        return 2*np.arccos(self.scalar.real)
 
+    @property
     def screw_distance(self):
         """Returns screw distance."""
-        theta = self.screw_angle()
-        d = (-2*self.scalar().dual)/np.sin(theta/2)
-        return d
+        theta = self.screw_angle
+        return (-2*self.scalar.dual)/np.sin(theta/2)
 
 def hom2dq(H):
     """Converts a 4x4 homogeneous, rigid body transformation matrix H into a
@@ -202,7 +206,7 @@ def hom2dq(H):
     t_q = np.array([0,t[0],t[1],t[2]])
     dq_dual = 0.5*qmult(t_q,dq_real)
 
-    return DualQuaternion(dq_real, dq_dual)
+    return DualQuaternion(Quaternion(dq_real), Quaternion(dq_dual))
 
 def qmult(q1,q2):
     """Quaternion multiplication."""
@@ -241,8 +245,8 @@ def dqcrosscalib(A,B):
 
     for i in range(n):
         a = hom2dq(A[:,:,i]); b = hom2dq(B[:,:,i])
-        a1 = a.real[1:]; b1 = b.real[1:]
-        a2 = a.dual[1:]; b2 = b.dual[1:]
+        a1 = a.real.vector; b1 = b.real.vector
+        a2 = a.dual.vector; b2 = b.dual.vector
         S[:3,0] = a1 - b1
         S[:3,1:4] = skew(a1 + b1)
         S[:3,4:] = np.zeros((3,4))
