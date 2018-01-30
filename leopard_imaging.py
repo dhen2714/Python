@@ -212,6 +212,33 @@ def calibrate_leopard_stereo(directory, check_rows, check_cols, length,
     print("Calibration finished, results saved.")
     return
 
+def correct_dist2(vec, fc, c ,k, p):
+    """
+    Corrects distortion using Brown's (or Brown-Conrady) distortion model.
+    This is the same method used by OpenCV.
+    """
+    # May be 2 or 3 radial coefficients depending on calibration method
+    if len(k) == 3:
+        k3 = k[2]
+    else:
+        k3 = 0
+
+    ud = vec[:,0]
+    vd = vec[:,1]
+    xn = (ud - c[0])/fc[0] # Normalise points
+    yn = (vd - c[1])/fc[1]
+    r2 = xn*xn + yn*yn
+    r4 = r2*r2
+    r6 = r4*r2
+
+    k_radial = 1 + k[0]*r2 + k[1]*r4 + k3*r6
+    x = xn*k_radial + 2*p[0]*xn*yn + p[1]*(r2 + 2*xn*xn)
+    y = yn*k_radial + p[0]*(r2 + 2*yn*yn) + 2*p[1]*xn*yn
+
+    x = fc[0]*x + c[0] # Convert back to pix coords
+    y = fc[1]*y + c[1]
+    return np.array([x,y]).T
+
 def correct_dist(vec,fc,c,k,p):
     """
     From Andre's IDL code.

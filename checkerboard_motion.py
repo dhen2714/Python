@@ -308,13 +308,13 @@ def load_stereo_calibration_results(npzFile):
     R = f['R']; t = f['T']
     P1 = np.dot(K1, np.hstack((np.eye(3), np.zeros((3,1)))))
     P2 = np.dot(K2, np.hstack((R, t.reshape(3,1))))
-    return P1, P2, K1, K2, dc1, dc2, R, t
+    return P1, P2, K1, K2, np.squeeze(dc1), np.squeeze(dc2), R, t
 
 def load_cam_calibration_results(npzFile):
     f = np.load(npzFile)
     K = f['K']; dc = f['dc']; rv = f['rvecs']; tv = f['tvecs']
     reprojection_error = f['ret']
-    return K, dc, rv, tv, reprojection_error
+    return K, np.squeeze(dc), rv, tv, reprojection_error
 
 def print_stereo_calibration_results(retval,P1,dc1,P2,dc2,R,T,E,F):
     print("Camera matrices: \n",P1,"\n",P2)
