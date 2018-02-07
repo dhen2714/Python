@@ -16,6 +16,7 @@ import glob
 import motion3d as m3d
 import os
 import matplotlib.pyplot as plt
+import pandas as pd
 
 def get_corners(directory,prefix,check_rows,check_cols,length,
                 showResults=True):
@@ -33,10 +34,10 @@ def get_corners(directory,prefix,check_rows,check_cols,length,
     # Dictionary with key corresponding to view number, value array of coords.
     d = dict()
 
-    images = glob.glob("{}*.jpg".format(directory + "/" + prefix))
+    images = glob.glob('{}*.jpg'.format(directory + '/' + prefix))
 
     for fname in images:
-        print("Processing ... ",fname)
+        print('Processing ... ',fname)
         view = fname.split("\\")[1].split(".")[0]
 
         img = cv2.imread(fname)
@@ -63,7 +64,7 @@ def get_corners(directory,prefix,check_rows,check_cols,length,
                 cv2.waitKey(1)
 
     if showResults:
-        input("Press ENTER to continue.")
+        input('Press ENTER to continue.')
         cv2.destroyAllWindows()
     return d
 
@@ -85,11 +86,11 @@ def triangulate_corners(d1,d2,P1,P2):
             X = cv2.triangulatePoints(P1,P2,x1.T,x2.T)
             X = np.apply_along_axis(lambda v: v/v[-1],0,X)
             # New dictionary keys are 'view01', 'view02', ...
-            newKey = "view" + num
+            newKey = 'view' + num
             dict3D.update({newKey : X})
     return dict3D
 
-def get_motions(dict3D,reference="view01"):
+def get_motions(dict3D,reference = 'view01'):
     """
     Use Horn's method to find the motions for each frame.
     """
@@ -108,14 +109,14 @@ def sort_image_filenames(list1, list2, prefix1, prefix2):
     """
     names1 = [os.path.split(_)[1] for _ in list1]
     names2 = [os.path.split(_)[1] for _ in list2]
-    nums1 = [int(os.path.splitext(_)[0].strip(prefix1)) for _ in names1]
-    nums2 = [int(os.path.splitext(_)[0].strip(prefix2)) for _ in names2]
+    nums1 = [int(os.path.splitext(_)[0].replace(prefix1, '')) for _ in names1]
+    nums2 = [int(os.path.splitext(_)[0].replace(prefix2, '')) for _ in names2]
     return list1[np.argsort(nums1)], list2[np.argsort(nums2)]
 
 def calibrate_stereo(directory, check_rows, check_cols, length,
-                     left_prefix = "left",
-                     right_prefix = "right",
-                     pixel_format = "pgm",
+                     left_prefix = 'left',
+                     right_prefix = 'right',
+                     pixel_format = 'pgm',
                      showResults = True):
     """
     Calibrate stereo camera setup.
@@ -132,9 +133,9 @@ def calibrate_stereo(directory, check_rows, check_cols, length,
     objpoints = [] # 3d points in real world space.
     imgpoints_left = [] # 2d points in image plane.
     imgpoints_right = []
-    left_search = os.path.join(directory, "{}*.{}".format(left_prefix,
+    left_search = os.path.join(directory, '{}*.{}'.format(left_prefix,
                                                           pixel_format))
-    right_search = os.path.join(directory, "{}*.{}".format(right_prefix,
+    right_search = os.path.join(directory, '{}*.{}'.format(right_prefix,
                                                            pixel_format))
     left_images = np.array(glob.glob(left_search))
     right_images = np.array(glob.glob(right_search))
@@ -145,8 +146,11 @@ def calibrate_stereo(directory, check_rows, check_cols, length,
                                                      left_prefix,
                                                      right_prefix)
 
+    ret_left = [] # Images for which checkerboard points found
+    ret_right = []
+
     if not (len(left_images) and len(right_images)):
-        print("No images found matching {}, {}".format(left_search,
+        print('No images found matching {}, {}'.format(left_search,
                                                        right_search))
         return
 
@@ -154,9 +158,9 @@ def calibrate_stereo(directory, check_rows, check_cols, length,
     unsuccessful_views = set()
 
     for image_left, image_right in zip(left_images, right_images):
-        view_left = os.path.split(image_left)[1].split(".")[0]
-        view_right = os.path.split(image_right)[1].split(".")[0]
-        print("Processing ... ", view_left, view_right)
+        view_left = os.path.split(image_left)[1].split('.')[0]
+        view_right = os.path.split(image_right)[1].split('.')[0]
+        print('Processing ... ', view_left, view_right)
 
         img_left = cv2.imread(image_left)
         img_right = cv2.imread(image_right)
@@ -180,6 +184,8 @@ def calibrate_stereo(directory, check_rows, check_cols, length,
             objpoints.append(objp)
             imgpoints_left.append(corners1)
             imgpoints_right.append(corners2)
+            ret_left.append(image_left)
+            ret_right.append(image_right)
 
             if showResults:
                 cv2.drawChessboardCorners(img_left,
@@ -190,15 +196,15 @@ def calibrate_stereo(directory, check_rows, check_cols, length,
                                           (check_rows, check_cols),
                                           corners2,
                                           ret2)
-                cv2.imshow("{}, {}".format(view_left, view_right),
+                cv2.imshow('{}, {}'.format(view_left, view_right),
                            np.hstack((img_left, img_right)))
-                cv2.waitKey(1)
+                cv2.waitKey(0)
         else:
-            print("Could not find corners in both {} and {}".format(
+            print('Could not find corners in both {} and {}'.format(
                     view_left, view_right))
 
 
-    input("All images processed. Press ENTER to continue.")
+    input('All images processed. Press ENTER to continue.')
     cv2.destroyAllWindows()
 
     ret1, K1, dc1, rv1, tv1 = cv2.calibrateCamera(objpoints, imgpoints_left,
@@ -208,8 +214,8 @@ def calibrate_stereo(directory, check_rows, check_cols, length,
                                                  img_left.shape[:2],None,None)
 
 
-    print("Reprojection error for left camera: ", ret1)
-    print("Reprojection error for right camera: ", ret2)
+    print('Reprojection error for left camera: ', ret1)
+    print('Reprojection error for right camera: ', ret2)
 
     left_reproj, left_pix = pixel_reprojections(check_rows, check_cols,
                 objpoints, imgpoints_left, K1, rv1, tv1, dc1)
@@ -225,25 +231,53 @@ def calibrate_stereo(directory, check_rows, check_cols, length,
                                         img_left.shape[:2],
                                         cv2.CALIB_FIX_INTRINSIC)
 
-    print("Final reprojection error: ", retval)
-    np.savez("Stereo_calibration",
+    # Show reprojection errors for each image.
+    rms_left = np.zeros(len(ret_left))
+    rms_right = np.zeros(len(ret_right))
+    for image_left, image_right, i in zip(ret_left, ret_right,
+                                          range(len(ret_left))):
+        rM1, _ = cv2.Rodrigues(rv1[i]) # Convert rot vec to matrix
+        rv2_new = np.dot(R, rM1)
+        rv2_new, _ = cv2.Rodrigues(rv2_new)
+        tv2_new = T + np.dot(R, tv1[i])
+        left_reproj, _ = cv2.projectPoints(
+            objpoints[i], rv1[i], tv1[i], K1, dc1)
+        right_reproj, _ = cv2.projectPoints(
+            objpoints[i], rv2_new, tv2_new, K2, dc2)
+        errs_left = np.squeeze(imgpoints_left[i] - left_reproj)
+        errs_right = np.squeeze(imgpoints_right[i] - right_reproj)
+        rms_left[i] = np.mean(np.sqrt((
+            errs_left[:,0]**2 + errs_left[:,1]**2)))
+        rms_right[i] = np.mean(np.sqrt((
+            errs_right[:,0]**2 + errs_right[:,1]**2)))
+
+    df = pd.DataFrame(np.array([rms_left, rms_right]).T,
+                      columns = [left_prefix, right_prefix])
+                      #index = imageNames)
+    df.plot.bar()
+    plt.ylabel('Mean reprojection error (pixels)')
+    plt.title('Stereo calibration mean reprojection error')
+    plt.show()
+
+    print('Final reprojection error: ', retval)
+    np.savez('Stereo_calibration',
              retval = retval,
              K1 = K1, dc1 = dc1, K2 = K2, dc2 = dc2, R = R, T = T,
              Ematrix = E, Fmatrix = F,
              Left_pix_coords = left_pix, Right_pix_coords = right_pix,
              Left_pix_reproj = left_reproj, Right_pix_reproj = right_reproj)
 
-    np.savez("Left_calibration", ret = ret1, K = K1, dc = dc1,
+    np.savez('Left_calibration', ret = ret1, K = K1, dc = dc1,
              rvecs = rv1, tvecs = tv1,
              Checkerboard_coords = left_pix,
              Checkerboard_reprojected = left_reproj)
 
-    np.savez("Right_calibration", ret = ret2, K = K2, dc = dc2,
+    np.savez('Right_calibration', ret = ret2, K = K2, dc = dc2,
              rvecs = rv2, tvecs = tv2,
              Checkerboard_coords = right_pix,
              Checkerboard_reprojected = right_reproj)
 
-    print("Calibration finished, results saved.")
+    print('Calibration finished, results saved.')
     return
 
 def reprojection_error(points3d, points2d, K, rvecs, tvecs, distCoeffs):
@@ -276,7 +310,7 @@ def pixel_reprojections(check_rows, check_cols, points3d, points2d,
         pix_measured[:,:,i] = np.squeeze(points2d[i])
     return pix_reprojected, pix_measured
 
-def print_stereo_cal_npz(npz_file = "Stereo_calibration.npz"):
+def print_stereo_cal_npz(npz_file = 'Stereo_calibration.npz'):
     """
     Displays results of stereo calibration for a given npz stereo cal file.
     """
@@ -289,20 +323,19 @@ def print_stereo_cal_npz(npz_file = "Stereo_calibration.npz"):
     P1 = np.dot(K1, np.hstack((R1, np.zeros((3,1)))))
     P2 = np.dot(K2, np.hstack((R2, t.reshape(3,1))))
 
-    display = ("P1 : \n {} \n".format(repr(P1)) +
-               "P2 : \n {} \n".format(repr(P2)) +
-               "K1 : \n {} \n".format(repr(K1)) +
-               "K2 : \n {} \n".format(repr(K2)) +
-               "R : \n {} \n".format(repr(R2))  +
-               "t : \n {} \n".format(repr(t))   +
-               "Distortion (k1, k2, p1, p2, k3): \n" +
-               "Camera 1: {} \n".format(repr(dc1)) +
-               "Camera 2: {} \n".format(repr(dc2)) +
-               "Reprojection error: {} \n".format(reprojection_error))
-    print(display)
+    print('P1 : \n {} \n'.format(repr(P1)) +
+          'P2 : \n {} \n'.format(repr(P2)) +
+          'K1 : \n {} \n'.format(repr(K1)) +
+          'K2 : \n {} \n'.format(repr(K2)) +
+          'R : \n {} \n'.format(repr(R2))  +
+          't : \n {} \n'.format(repr(t))   +
+          'Distortion (k1, k2, p1, p2, k3): \n' +
+          'Camera 1: {} \n'.format(repr(dc1)) +
+          'Camera 2: {} \n'.format(repr(dc2)) +
+          'Reprojection error: {} \n'.format(reprojection_error))
     return
 
-def load_stereo_calibration_results(npzFile):
+def load_stereo_calibration_results(npzFile = 'Stereo_calibration.npz'):
     f = np.load(npzFile)
     K1 = f['K1']; K2 = f['K2']; dc1 = f['dc1']; dc2 = f['dc2']
     R = f['R']; t = f['T']
@@ -317,14 +350,14 @@ def load_cam_calibration_results(npzFile):
     return K, np.squeeze(dc), rv, tv, reprojection_error
 
 def print_stereo_calibration_results(retval,P1,dc1,P2,dc2,R,T,E,F):
-    print("Camera matrices: \n",P1,"\n",P2)
-    print("Distortion coefficients: \n",dc1,"\n",dc2)
-    print("Rotation matrix: \n",R)
-    print("Translation vector: \n",T)
+    print('Camera matrices: \n',P1,'\n',P2)
+    print('Distortion coefficients: \n',dc1,'\n',dc2)
+    print('Rotation matrix: \n',R)
+    print('Translation vector: \n',T)
     return
 
-if __name__ == "__main__":
-    images = "images/"
+if __name__ == '__main__':
+    images = 'images/'
     #d = get_corners('images','left',6,9,True)
     #print(d['left02'])
     ret, P1, dc1, P2, dc2, R, T, E, F = calibrate_stereo(images,6,9,30,False)
