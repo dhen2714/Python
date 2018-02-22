@@ -279,6 +279,109 @@ def correct_dist(vec,fc,c,k,p):
     cvec = np.array([x,y]).T
     return cvec
 
+def triangulate_checkerboard_corners(image, check_rows, check_cols,
+    P1, P2, fc1, fc2, dc1, dc2, pp1, pp2):
+    """
+    Returns X, a N*4 numpy array of homogeneous 3D positions of checkerboard
+    corners.
+    """
+    # Termination criteria for getting sub-pixel corner positions.
+    criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)
+    # Prepare corner points, e.g. (0,0,0), (1,0,0), (2,0,0) ....,(6,5,0)
+    objp = np.zeros((check_rows*check_cols,3), np.float32)
+    # Variable 'length' is size of checkerboard square.
+    objp[:,:2] = np.mgrid[0:check_rows,0:check_cols].T.reshape(-1,2)
+    objpoints = []
+    imgpoints_left = [] # 2d points in image plane.
+    imgpoints_right = []
+
+    img = cv2.imread(image)
+    img_left = img[:, 640:]
+    img_right = img[:, :640]
+    grey_left = cv2.cvtColor(img_left, cv2.COLOR_BGR2GRAY)
+    grey_right = cv2.cvtColor(img_right, cv2.COLOR_BGR2GRAY)
+
+    ret1, corners1 = cv2.findChessboardCorners(grey_left,
+                                           (check_rows, check_cols),
+                                           None)
+    ret2, corners2 = cv2.findChessboardCorners(grey_right,
+                                           (check_rows, check_cols),
+                                           None)
+
+    if (ret1 and ret2):
+        corners1 = cv2.cornerSubPix(grey_left, corners1, (5,5),
+                                    (-1,-1),
+                                    criteria)
+        corners2 = cv2.cornerSubPix(grey_right, corners2, (5,5),
+                                    (-1,-1),
+                                    criteria)
+        objpoints.append(objp)
+        #corners2 = np.flipud(corners2)
+        imgpoints_left.append(corners1)
+        imgpoints_right.append(corners2)
+    else:
+        print('Could not triangulate points for {}'.format(image))
+        return
+
+    imageName = os.path.splitext(os.path.split(image)[1])[0]
+
+    left = correct_dist(np.squeeze(imgpoints_left[0]), fc1, pp1,
+        dc1[[0,1,4]], dc1[[2,3]])
+    right = correct_dist(np.squeeze(imgpoints_right[0]), fc2, pp2,
+        dc2[[0,1,4]], dc2[[2,3]])
+    # left = np.squeeze(imgpoints_left[0])
+    # right = np.squeeze(imgpoints_right[0])
+    points3d = cv2.triangulatePoints(P1, P2, left.T, right.T)
+    X = np.apply_along_axis(lambda v: v/v[-1],0, points3d).T
+
+    left_reproj = np.dot(P1, X.T)
+    right_reproj = np.dot(P2, X.T)
+    lr = np.apply_along_axis(lambda v: v/v[-1], 0, left_reproj).T
+    rr = np.apply_along_axis(lambda v: v/v[-1], 0, right_reproj).T
+    errs_left = np.abs(left - lr[:,:2])
+    errs_right = np.abs(right - rr[:,:2])
+    mean_errs_left = np.mean(errs_left, axis = 0)
+    mean_errs_right = np.mean(errs_right, axis = 0)
+    print(imageName)
+    print("MEAN ERRS L: ", mean_errs_left)
+    print("MEAN ERRS R: ", mean_errs_right)
+
+    # In some cases, the orientation of the checkerboard model may be flipped
+    # between the stereo views.
+    if (np.mean(mean_errs_left) > 2) or (np.mean(mean_errs_right) > 2):
+        print('Errors too high, try flipping order of corner coords')
+        right = np.flipud(right)
+        corners2 = np.flipud(corners2)
+        points3d = cv2.triangulatePoints(P1, P2, left.T, right.T)
+        X = np.apply_along_axis(lambda v: v/v[-1],0, points3d).T
+
+        left_reproj = np.dot(P1, X.T)
+        right_reproj = np.dot(P2, X.T)
+        lr = np.apply_along_axis(lambda v: v/v[-1], 0, left_reproj).T
+        rr = np.apply_along_axis(lambda v: v/v[-1], 0, right_reproj).T
+        errs_left = np.abs(left - lr[:,:2])
+        errs_right = np.abs(right - rr[:,:2])
+        mean_errs_left = np.mean(errs_left, axis = 0)
+        mean_errs_right = np.mean(errs_right, axis = 0)
+        print(imageName)
+        print("NEW MEAN ERRS L: ", mean_errs_left)
+        print("NEW MEAN ERRS R: ", mean_errs_right)
+
+    cv2.drawChessboardCorners(img_left,
+                              (check_rows, check_cols),
+                              corners1,
+                              ret1)
+    cv2.drawChessboardCorners(img_right,
+                              (check_rows, check_cols),
+                              corners2,
+                              ret2)
+
+    # Save image of drawn checkerboard corners for diagnostics
+    cv2.imwrite("{}_test.jpg".format(imageName),
+        np.hstack((img_left, img_right)))
+
+    return X
+
 def get_checkerboard_points3d(directory, check_rows, check_cols,
     P1, P2, fc1, fc2, dc1, dc2, pp1, pp2, ext = '.pgm'):
     """
