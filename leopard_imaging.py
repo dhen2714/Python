@@ -280,7 +280,8 @@ def correct_dist(vec,fc,c,k,p):
     return cvec
 
 def triangulate_checkerboard_corners(image, check_rows, check_cols,
-    P1, P2, fc1, fc2, dc1, dc2, pp1, pp2):
+    P1, P2, fc1, fc2, dc1, dc2, pp1, pp2, err_thresh = 2, verbose = True,
+    save_checker_corners = True):
     """
     Returns X, a N*4 numpy array of homogeneous 3D positions of checkerboard
     corners.
@@ -320,7 +321,8 @@ def triangulate_checkerboard_corners(image, check_rows, check_cols,
         imgpoints_left.append(corners1)
         imgpoints_right.append(corners2)
     else:
-        print('Could not triangulate points for {}'.format(image))
+        if verbose:
+            print('Could not triangulate points for {}'.format(image))
         return
 
     imageName = os.path.splitext(os.path.split(image)[1])[0]
@@ -342,14 +344,18 @@ def triangulate_checkerboard_corners(image, check_rows, check_cols,
     errs_right = np.abs(right - rr[:,:2])
     mean_errs_left = np.mean(errs_left, axis = 0)
     mean_errs_right = np.mean(errs_right, axis = 0)
-    print(imageName)
-    print("MEAN ERRS L: ", mean_errs_left)
-    print("MEAN ERRS R: ", mean_errs_right)
+
+    if verbose:
+        print(imageName)
+        print("MEAN ERRS L: ", mean_errs_left)
+        print("MEAN ERRS R: ", mean_errs_right)
 
     # In some cases, the orientation of the checkerboard model may be flipped
     # between the stereo views.
-    if (np.mean(mean_errs_left) > 2) or (np.mean(mean_errs_right) > 2):
-        print('Errors too high, try flipping order of corner coords')
+    if (np.mean(mean_errs_left) > err_thresh) or (
+        np.mean(mean_errs_right) > err_thresh):
+        if verbose:
+            print('Errors too high, try flipping order of corner coords')
         right = np.flipud(right)
         corners2 = np.flipud(corners2)
         points3d = cv2.triangulatePoints(P1, P2, left.T, right.T)
@@ -363,22 +369,31 @@ def triangulate_checkerboard_corners(image, check_rows, check_cols,
         errs_right = np.abs(right - rr[:,:2])
         mean_errs_left = np.mean(errs_left, axis = 0)
         mean_errs_right = np.mean(errs_right, axis = 0)
-        print(imageName)
-        print("NEW MEAN ERRS L: ", mean_errs_left)
-        print("NEW MEAN ERRS R: ", mean_errs_right)
+        if verbose:
+            print(imageName)
+            print("NEW MEAN ERRS L: ", mean_errs_left)
+            print("NEW MEAN ERRS R: ", mean_errs_right)
 
-    cv2.drawChessboardCorners(img_left,
-                              (check_rows, check_cols),
-                              corners1,
-                              ret1)
-    cv2.drawChessboardCorners(img_right,
-                              (check_rows, check_cols),
-                              corners2,
-                              ret2)
+    if (np.mean(mean_errs_left) > err_thresh) or (
+        np.mean(mean_errs_right) > err_thresh):
+        if verbose:
+            print('Errors still too high for {}, returning None'.format(image))
+        return
 
     # Save image of drawn checkerboard corners for diagnostics
-    cv2.imwrite("{}_test.jpg".format(imageName),
-        np.hstack((img_left, img_right)))
+    if save_checker_corners:
+        cv2.drawChessboardCorners(img_left,
+                                  (check_rows, check_cols),
+                                  corners1,
+                                  ret1)
+        cv2.drawChessboardCorners(img_right,
+                                  (check_rows, check_cols),
+                                  corners2,
+                                  ret2)
+
+
+        cv2.imwrite("{}_test.jpg".format(imageName),
+            np.hstack((img_left, img_right)))
 
     return X
 
