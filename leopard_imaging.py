@@ -356,8 +356,8 @@ def triangulate_checkerboard_corners(image, check_rows, check_cols,
         np.mean(mean_errs_right) > err_thresh):
         if verbose:
             print('Errors too high, try flipping order of corner coords')
-        right = np.flipud(right)
-        corners2 = np.flipud(corners2)
+        left = np.flipud(left)
+        corners1 = np.flipud(corners1)
         points3d = cv2.triangulatePoints(P1, P2, left.T, right.T)
         X = np.apply_along_axis(lambda v: v/v[-1],0, points3d).T
 

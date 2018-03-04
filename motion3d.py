@@ -86,26 +86,26 @@ def random_motion(rot,tr):
     y = tr*2*(np.random.rand() - 0.5)
     z = tr*2*(np.random.rand() - 0.5)
     return vec2mat(yaw,pitch,roll,x,y,z)
-    
+
 def hornmm(X1,X2):
     """
     Translated from hornmm.pro
-    
+
     Least squares solution to X1 = H*X2.
     Outputs H, the transformation from X2 to X1.
     Inputs X1 and X2 are Nx3 (or Nx4 homogeneous) arrays of 3D points.
-    
+
     Implements method in "Closed-form solution of absolute orientation using
     unit quaternions",
     Horn B.K.P, J Opt Soc Am A 4(4):629-642, April 1987.
     """
     N = X2.shape[0]
-    
+
     xc  = np.sum(X2[:,0])/N
     yc  = np.sum(X2[:,1])/N
-    zc  = np.sum(X2[:,2])/N	
+    zc  = np.sum(X2[:,2])/N
     xfc = np.sum(X1[:,0])/N
-    yfc = np.sum(X1[:,1])/N 	
+    yfc = np.sum(X1[:,1])/N
     zfc = np.sum(X1[:,2])/N
 
     xn  = X2[:,0] - xc; yn  = X2[:,1] - yc; zn  = X2[:,2] - zc
@@ -128,7 +128,7 @@ def hornmm(X1,X2):
     index = np.argmax(eVal)
     vec = eVec[:,index]
     q0 = vec[0]; qx = vec[1]; qy = vec[2]; qz = vec[3]
-	
+
     X = np.array([[(q0*q0+qx*qx-qy*qy-qz*qz),2*(qx*qy-q0*qz),2*(qx*qz+q0*qy),0],
                   [2*(qy*qx+q0*qz),(q0*q0-qx*qx+qy*qy-qz*qz),2*(qy*qz-q0*qx),0],
                   [2*(qz*qx-q0*qy),2*(qz*qy+q0*qx),(q0*q0-qx*qx-qy*qy+qz*qz),0],
