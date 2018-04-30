@@ -67,7 +67,7 @@ def raw_2_pgm(directory, rows, cols, bit_depth = np.uint8, stereo = False):
     return
 
 def calibrate_leopard_stereo(directory, check_rows, check_cols, length,
-    pixel_format = "pgm", showCorners = True):
+    pixel_format="pgm", output_dir=None, showCorners=True):
     """
     Calibrates leoprad stereo cameras.
     Outputs results into .npz files.
@@ -128,13 +128,14 @@ def calibrate_leopard_stereo(directory, check_rows, check_cols, length,
                                           corners2,
                                           ret2)
                 cv2.imshow("{}".format(image),
-                    np.hstack((img_left, img_right)))
+                    np.hstack((img_right, img_left)))
                 cv2.waitKey(0)
         else:
             print("Could not find corners in both views of".format(image))
 
 
-    input("All images processed. Press ENTER to continue.")
+    if showCorners:
+        input("All images processed. Press ENTER to continue.")
     cv2.destroyAllWindows()
     print("Calibrating...")
 
@@ -184,10 +185,18 @@ def calibrate_leopard_stereo(directory, check_rows, check_cols, length,
     df = pd.DataFrame(np.array([rms_left, rms_right]).T,
                       columns = ['Left', 'Right'],
                       index = imageNames)
+
+
+    if output_dir is not None:
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+        os.chdir(output_dir)
+
     df.plot.bar()
     plt.ylabel('Mean reprojection error (pixels)')
     plt.title('Stereo calibration mean reprojection error')
-    plt.show()
+    plt.savefig('reprojection_error.png')
+    # plt.show()
 
     np.savez('Objpoints.npz', objpoints = objpoints,
         left = imgpoints_left, right = imgpoints_right)
