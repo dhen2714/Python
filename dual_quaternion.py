@@ -37,7 +37,7 @@ class Quaternion:
 
     def __str__(self):
         return '{} + {}i + {}j + {}k'.format(self.w, self.x, self.y, self.z)
-    
+
     def __repr__(self):
         return 'Quaternion({}, {}, {}, {})'.format(
             self.w, self.x, self.y, self.z)
@@ -266,7 +266,11 @@ class DualQuaternion(DualNumber):
     def screw_distance(self):
         """Returns screw distance."""
         theta = self.screw_angle
-        return (-2*self.scalar.dual)/np.sin(theta/2)
+        if theta == 0:
+            retval = np.nan
+        else:
+            retval = (-2*self.scalar.dual)/np.sin(theta/2)
+        return retval
 
 def rot2q(R):
     """Converts 3x3 rotation matrix to quaternion"""
