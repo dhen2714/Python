@@ -1,5 +1,6 @@
 import numpy as np
 
+
 class Quaternion:
     """
     Quaternion
@@ -272,6 +273,7 @@ class DualQuaternion(DualNumber):
             retval = (-2*self.scalar.dual)/np.sin(theta/2)
         return retval
 
+
 def rot2q(R):
     """Converts 3x3 rotation matrix to quaternion"""
     q0 = 1 + R[0,0] + R[1,1] + R[2,2]
@@ -302,6 +304,7 @@ def rot2q(R):
         qz = (R[1,0]-R[0,1])/(4*q0)
     return Quaternion(q0, qx, qy, qz)
 
+
 def hom2dq(H):
     """Converts a 4x4 homogeneous, rigid body transformation matrix H into a
     dual quaternion."""
@@ -310,6 +313,7 @@ def hom2dq(H):
     q2 = 0.5*Quaternion(0, t[0], t[1], t[2])*q1
     return DualQuaternion(q1, q2)
 
+
 def qmult(q1,q2):
     """Quaternion multiplication."""
     q1vec = q1[1:]; q2vec = q2[1:]
@@ -317,10 +321,8 @@ def qmult(q1,q2):
 
     qscalar = q1scalar*q2scalar - np.dot(q1vec,q2vec)
     qvec = q1scalar*q2vec + q2scalar*q1vec + np.cross(q1vec,q2vec)
+    return np.array([qscalar,qvec[0],qvec[1],qvec[2]])
 
-    q = np.array([qscalar,qvec[0],qvec[1],qvec[2]])
-
-    return q
 
 def skew(w):
     """Skew symmetric matrix from 3-vector."""
@@ -328,6 +330,7 @@ def skew(w):
     R[0,1] = -w[2]; R[0,2] = w[1]; R[1,2] = -w[0]
     R[1,0] = w[2]; R[2,0] = -w[1]; R[2,1] = w[0]
     return R
+
 
 def dqcrosscalib(A,B):
     """
