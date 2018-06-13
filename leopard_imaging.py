@@ -67,7 +67,7 @@ def raw_2_pgm(directory, rows, cols, bit_depth = np.uint8, stereo = False):
     return
 
 def calibrate_leopard_stereo(directory, check_rows, check_cols, length,
-    pixel_format="pgm", output_dir=None, showCorners=True):
+    pixel_format="pgm", output_dir=None, showCorners=True, save_corners=False):
     """
     Calibrates leoprad stereo cameras.
     Outputs results into .npz files.
@@ -190,12 +190,16 @@ def calibrate_leopard_stereo(directory, check_rows, check_cols, length,
     if output_dir is not None:
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
+        ORIG_DIR = os.getcwd()
         os.chdir(output_dir)
+
+    df.to_pickle('stereo_reprojection_errors.pkl')
 
     df.plot.bar()
     plt.ylabel('Mean reprojection error (pixels)')
     plt.title('Stereo calibration mean reprojection error')
     plt.savefig('reprojection_error.png')
+    plt.close()
     # plt.show()
 
     np.savez('Objpoints.npz', objpoints = objpoints,
@@ -219,6 +223,8 @@ def calibrate_leopard_stereo(directory, check_rows, check_cols, length,
              Checkerboard_reprojected = right_reproj)
 
     print("Calibration finished, results saved.")
+    if output_dir is not None:
+        os.chdir(ORIG_DIR)
     return
 
 def correct_dist2(vec, fc, c ,k, p):
@@ -402,7 +408,7 @@ def triangulate_checkerboard_corners(image, check_rows, check_cols,
 
 
         cv2.imwrite("{}_test.jpg".format(imageName),
-            np.hstack((img_left, img_right)))
+            np.hstack((img_right, img_left)))
 
     return X
 
