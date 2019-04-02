@@ -160,8 +160,8 @@ def calibrate_leopard_stereo(directory, check_rows, check_cols, length,
                                         imgpoints_right,
                                         K1, dc1,
                                         K2, dc2,
-                                        img_left.shape[:2],
-                                        cv2.CALIB_FIX_INTRINSIC)
+                                        img_left.shape[:2],)
+                                        #cv2.CALIB_FIX_INTRINSIC)
 
     # Show reprojection errors for each image.
     rms_left = np.zeros(len(imageNames))
@@ -296,7 +296,7 @@ def correct_dist(vec,fc,c,k,p):
 
 def triangulate_checkerboard_corners(image, check_rows, check_cols,
     P1, P2, fc1, fc2, dc1, dc2, pp1, pp2, err_thresh = 2, verbose = True,
-    save_checker_corners = True):
+    output_checker_corners=None):
     """
     Returns X, a N*4 numpy array of homogeneous 3D positions of checkerboard
     corners.
@@ -396,7 +396,7 @@ def triangulate_checkerboard_corners(image, check_rows, check_cols,
         return
 
     # Save image of drawn checkerboard corners for diagnostics
-    if save_checker_corners:
+    if output_checker_corners is not None:
         cv2.drawChessboardCorners(img_left,
                                   (check_rows, check_cols),
                                   corners1,
@@ -407,7 +407,7 @@ def triangulate_checkerboard_corners(image, check_rows, check_cols,
                                   ret2)
 
 
-        cv2.imwrite("{}_test.jpg".format(imageName),
+        cv2.imwrite(output_checker_corners,
             np.hstack((img_right, img_left)))
 
     return X
