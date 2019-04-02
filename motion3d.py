@@ -96,7 +96,7 @@ def stavdahl_average(*arrays):
     sum_arr = sum(arrays)
 
     # Get average rotation
-    U, S, Vt = np.linalg.svd(sum_arr[:3, :3])
+    U, S, Vt = np.linalg.svd(sum_arr[:3, :3]) # Vt, transpose of V is returned
     if np.linalg.det(sum_arr[:3, :3]) < 0:
         J = np.diag([1, 1, -1])
     else:
@@ -120,6 +120,54 @@ def random_motion(rot=5, tr=10):
     y = tr*2*(np.random.rand() - 0.5)
     z = tr*2*(np.random.rand() - 0.5)
     return vec2mat(yaw, pitch, roll, x, y, z)
+
+
+def transform_pose_array(poses, reference_pose=None):
+    """
+    Transforms poses to motions.
+    Inputs:
+        poses - Nx6 array of poses in [Rx Ry Rz x y z] format
+        reference_pose - reference pose, defaults to first pose
+    Outputs:
+        motions - Nx6 array of motions in [Rx Ry Rz x y z format]
+    """
+    num_poses = len(poses)
+    motions = np.zeros((num_poses, 6))
+
+    if reference_pose is None:
+        reference_pose = 0
+    
+    ref_mat = vec2mat(poses[reference_pose])
+
+    for i in range(num_poses):
+        pose_mat = vec2mat(poses[i])
+        motion = np.dot(pose_mat, np.linalg.inv(ref_mat))
+        motions[i, :] = mat2vec(motion)
+
+    return motions
+
+
+def calibrate_motion_array(motions, calibration):
+    """
+    Calibrates a motion array B to coordinate frame A by applying A = XBX^-1
+    Inputs:
+        motions - Nx6 array of motions in [Rx Ry Rz x y z] format in coordinate
+                  frame B
+        calibration - the calibration X converting measurements in B to A
+    Outputs:
+        cal_motions - calibrated motions in coordinate frame A
+    """
+    num_motions = len(motions)
+    cal_motions = np.zeros((num_motions, 6))
+
+    cal_inv = np.linalg.inv(calibration)
+
+    for i in range(num_motions):
+        motion = vec2mat(motions[i])
+        cal_motion = mdot(calibration, motion, cal_inv)
+        cal_motions[i, :] = cal_motion
+
+    return cal_motions
 
 
 def hornmm(X1, X2):
