@@ -165,7 +165,7 @@ def calibrate_motion_array(motions, calibration):
     for i in range(num_motions):
         motion = vec2mat(motions[i])
         cal_motion = mdot(calibration, motion, cal_inv)
-        cal_motions[i, :] = cal_motion
+        cal_motions[i, :] = mat2vec(cal_motion)
 
     return cal_motions
 
