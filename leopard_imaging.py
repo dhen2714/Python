@@ -492,6 +492,11 @@ def get_checkerboard_points3d(directory, check_rows, check_cols,
     return X
 
 if __name__ == "__main__":
-    directory = r"C:/Users/dhen2714/OneDrive - The University of Sydney (Students)/Phd/Experiments/VolunteerForeheadTracking/Tests/PreSetup/20171220_Calibration_intrinsic/Images"
+    # directory = r"C:/Users/dhen2714/OneDrive - The University of Sydney (Students)/Phd/Experiments/VolunteerForeheadTracking/Tests/PreSetup/20171220_Calibration_intrinsic/Images"
 
-    raw_2_pgm(directory, 480, 1280, stereo = True)
+    # raw_2_pgm(directory, 480, 1280, stereo = True)
+    onedrive = os.environ['OneDrive']
+    testdir = os.path.join(onedrive, 'Phd/Projects/dense_stereo_reconstruction/stereo_cal/tattoo_cal_2409_4_0')
+    rows = 11
+    cols = 17
+    calibrate_leopard_stereo(testdir, rows, cols, 5, showCorners=False)

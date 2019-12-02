@@ -163,7 +163,7 @@ def calibrate_motion_array(motions, calibration):
     cal_inv = np.linalg.inv(calibration)
 
     for i in range(num_motions):
-        motion = vec2mat(motions[i])
+        motion = vec2mat(motions[i, :])
         cal_motion = mdot(calibration, motion, cal_inv)
         cal_motions[i, :] = mat2vec(cal_motion)
 
