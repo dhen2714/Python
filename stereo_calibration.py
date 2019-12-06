@@ -86,7 +86,11 @@ class LeopardStereoCal:
         self.cal_inds_all = []
         # Cal inds to remove
         self.removed_inds = []
-        print('Found {} images:\n'.format(len(self.all_imgs)), self.all_imgs)
+        if len(self.all_imgs):
+            print(
+                'Found {} images:\n'.format(len(self.all_imgs)), 
+                self.all_imgs
+            )
         # Length of checkerboard square in mm.
         self.size = size
         # Shape of single image view
@@ -195,14 +199,14 @@ class LeopardStereoCal:
         self.calculate_stereo_reprojection_errors()
 
     def calibrate(self, output_path=None, output_corners=None, 
-        show_corners=False):
+        show_corners=False, output_error_plot=None):
         """
         Stereo calibration with command line input.
         """
         while(True):
             self._calibrate()
             self.draw_checker_corners(output_corners, show_corners)
-            self.show_errors()
+            self.show_errors(output_error_plot)
             prompt = 'Enter indices to remove separated by comma:\n'
 
             try:
@@ -213,6 +217,7 @@ class LeopardStereoCal:
             except ValueError:
                 print('Exiting.')
                 if output_path is not None:
+                    print('Saving calibration to', output_path)
                     self.save(output_path)
                 break
 
